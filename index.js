@@ -2,13 +2,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 
-
-const directories = source = > fs.readdirSync(source, {
+const directories = source => fs.readdirSync(source, {
     withFileTypes: true
-}).reduce((a, c) = > {
-    c.isDirectory() && c.name.endsWith('.skill') && a.push(c.name)
-    return a
-}, [])
+}).reduce((a, c) => {
+    if (c.isDirectory() && c.name.endsWith('.skill')) {
+        a.push(c.name);
+    }
+    return a;
+}, []);
 
 const skillDirs = directories('.');
 
@@ -20,7 +21,7 @@ const skillEndpoints = {};
 skillDirs.forEach(function(skilldir) {
     skillEndpointName = skilldir.replace('.skill', '');
 
-    console.log("Registering Skillendpoint /" + skillEndpointName);
+    console.log('Registering Skillendpoint /' + skillEndpointName);
 
     skillEndpoints[skillEndpointName] = require('./' + skilldir + '/skill').handler;
 
