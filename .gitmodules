@@ -1,6 +1,6 @@
 [submodule "test.skill"]
 	path = test.skill
-	url = ../test.skill.git
+	url = git@github.com:VolkerChristian/test.skill.git
 [submodule "alexa-wastecalendar.skill"]
 	path = alexa-wastecalendar.skill
 	url = git@github.com:VolkerChristian/alexa-wastecalendar.skill.git
