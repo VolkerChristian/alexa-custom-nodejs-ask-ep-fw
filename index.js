@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 
-const directories = source => fs.readdirSync(source, {
+const skillDirs = source => fs.readdirSync(source, {
     withFileTypes: true
 }).reduce((a, c) => {
     if (c.isDirectory() && c.name.endsWith('.skill')) {
@@ -11,14 +11,12 @@ const directories = source => fs.readdirSync(source, {
     return a;
 }, []);
 
-const skillDirs = directories('.');
+const skillEndpoints = {};
 
 const app = express();
 app.use(bodyParser.json());
 
-const skillEndpoints = {};
-
-skillDirs.forEach(function(skilldir) {
+skillDirs('.').forEach(function(skilldir) {
     skillEndpointName = skilldir.replace('.skill', '');
 
     console.log('Registering Skillendpoint /' + skillEndpointName);
@@ -32,13 +30,12 @@ skillDirs.forEach(function(skilldir) {
 
         skillEndpoints[skillEndpointName].invoke(req.body)
             .then(function(responseBody) {
-            res.json(responseBody);
-        })
-            .
-        catch (function(error) {
-            console.log(error);
-            res.status(500).send('Error during the request');
-        });
+                res.json(responseBody);
+            })
+            .catch (function(error) {
+                console.log(error);
+                res.status(500).send('Error during the request');
+            });
 
         console.log('RESPONSE++++ ' + JSON.stringify(res.body));
     });
