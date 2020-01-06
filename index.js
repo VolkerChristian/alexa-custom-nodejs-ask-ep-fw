@@ -26,8 +26,8 @@ skillDirs('.').forEach(function(skilldir) {
     app.post('/' + skillEndpointName, function(req, res) {
         skillEndpointName = req.url.replace(/\//g, '');
 
-        console.log('REQUEST++++ ' + JSON.stringify(skillEndpointName, null, '    '));
-        console.log('BODY: ' + JSON.stringify(req.body, null, '    '));
+//        console.log('REQUEST++++ ' + JSON.stringify(skillEndpointName, null, '    '));
+//        console.log('BODY: ' + JSON.stringify(req.body, null, '    '));
 
         skillEndpoints[skillEndpointName].invoke(req.body)
             .then(function(responseBody) {
