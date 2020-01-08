@@ -4,29 +4,48 @@ var mysql = require('mysql');
 var request = require('request');
 var ICAL = require('ical.js');
 
-var db = mysql.createConnection({
-    host: 'proliant.home.vchrist.at',
-    user: 'wastecalendar',
-    password: '!!!SoMaSi01!!!'
-});
+var db;
 
-db.connect();
+function handleDisconnect() {
+    db = mysql.createConnection({
+//        host: 'proliant.home.vchrist.at',
+        host: '192.168.1.3',
+        user: 'wastecalendar',
+        password: '!!!SoMaSi01!!!'
+    });
 
-function handleDisconnect(client) {
-    client.on('error', function(error) {
-        console.log("ErrorCode: " + error.code);
+    db.connect(function onConnect(err) {
+        if (err) {
+            console.log('error when connecting to db:', err);
+            setTimeout(handleDisconnect, 1000);
+        } else {
+            console.log('MySQL Connected!');
+        }
+    });
+
+    db.origQuery = db.query;
+
+    db.query = function(sql, cb) {
+        db.origQuery(sql, function(err, result) {
+            if (err) {
+                console.log('Query Error: ' + err);
+            } else {}
+            cb(err, result);
+        });
+    };
+
+    db.on('error', function(error) {
+        console.log('On Error: ' + error);
         if (!error.fatal) return;
         if (error.code !== 'PROTOCOL_CONNECTION_LOST' && error.code !== 'PROTOCOL_PACKETS_OUT_OF_ORDER' && error.code !== 'ECONNREFUSED') throw error;
 
         console.log('> Re-connecting lost MySQL connection: ' + error.stack);
 
-        db = mysql.createConnection(client.config);
-        handleDisconnect(db);
-        db.connect();
-        console.log('Connected!');
+        setTimeout(handleDisconnect(), 1000);
     });
 }
-handleDisconnect(db);
+
+handleDisconnect();
 
 var nextcloudAuth = new ClientOAuth2({
     clientId: 'wsdWZ7YHytNP94j3CSh2WFMWlQQ3Dq1Dafbf0Y8YQee3VS55kthpRIInBnAUNbR2',
@@ -51,22 +70,46 @@ app.get('/auth/nextcloud', function(req, res) {
     res.redirect(uri);
 });
 
+function insertUser(user, cb) {
+    sql = `INSERT INTO wastecalendar.oc_user(
+        oc_userid,
+        oc_accesstoken,
+        oc_refreshtoken,
+        oc_expires)
+    VALUES(
+        ${db.escape(user.data.user_id)},
+        ${db.escape(user.accessToken)},
+        ${db.escape(user.refreshToken)},
+        ${db.escape(user.expires)})`;
+
+    console.log("SQL: " + sql);
+    db.query(sql, function(err, result) {
+        if (err) {
+            console.error(err.stack);
+            result.statusCode = 500;
+            result.end();
+            return;
+        }
+        console.log(result.affectedRows + ' record inserted ' + util.inspect(result));
+        if (cb) {
+            cb(user);
+        }
+    });
+}
 
 function refreshUser(user, cb) {
     user.refresh().then(function(updatedUser) {
-        console.log(updatedUser);
-        console.log(updatedUser !== user); //=> true
         console.log('AccessToken: ' + updatedUser.accessToken);
         console.log('RefreshToken: ' + updatedUser.refreshToken);
         console.log('Expires: ' + updatedUser.expires);
 
         var sql = `UPDATE wastecalendar.oc_user
         SET
-        oc_accesstoken = '${updatedUser.accessToken}',
-            oc_refreshtoken = '${updatedUser.refreshToken}',
-            oc_expires = '${updatedUser.expires}'
+        oc_accesstoken = ${db.escape(updatedUser.accessToken)},
+            oc_refreshtoken = ${db.escape(updatedUser.refreshToken)},
+            oc_expires = ${db.escape(updatedUser.expires)}
         WHERE
-        oc_userid = '${updatedUser.data.user_id}'`;
+        oc_userid = ${db.escape(updatedUser.data.user_id)}`;
 
         db.query(sql, function(err, result) {
             if (err) {
@@ -84,33 +127,6 @@ function refreshUser(user, cb) {
     });
 }
 
-
-function insertUser(user, cb) {
-    sql = `INSERT INTO wastecalendar.oc_user(
-        oc_userid,
-        oc_accesstoken,
-        oc_refreshtoken,
-        oc_expires)
-    VALUES(
-        '${user.data.user_id}',
-        '${user.accessToken}',
-        '${user.refreshToken}',
-        '${user.expires}')`;
-
-    db.query(sql, function(err, result) {
-        if (err) {
-            console.error(err.stack);
-            result.statusCode = 500;
-            result.end();
-            return;
-        }
-        console.log(result.affectedRows + ' record inserted ' + util.inspect(result));
-        if (cb) {
-            cb(user);
-        }
-    });
-}
-
 app.get('/auth/nextcloud/callback', function(req, res) {
     if (db.state === 'disconnected') {
         return res.status(500).send('No Database connection!\n');
@@ -119,7 +135,7 @@ app.get('/auth/nextcloud/callback', function(req, res) {
     nextcloudAuth.code.getToken(req.originalUrl).then(function(user) {
         console.log(user);
 
-        var sql = `SELECT * FROM wastecalendar.oc_user WHERE oc_userid = '${user.data.user_id}'`;
+        var sql = `SELECT * FROM wastecalendar.oc_user WHERE oc_userid = ${db.escape(user.data.user_id)}`;
 
         db.query(sql, function(err, result) {
             if (err) {
@@ -131,16 +147,14 @@ app.get('/auth/nextcloud/callback', function(req, res) {
             console.log(result.affectedRows + ' records found ' + util.inspect(result));
 
             if (result && result.length) {
-                sql = `DELETE FROM wastecalendar.oc_user WHERE oc_userid = '${user.data.user_id}'`;
+                sql = `DELETE FROM wastecalendar.oc_user WHERE oc_userid = ${db.escape(user.data.user_id)}`;
                 db.query(sql, function(err, result) {
                     if (err) {
                         console.error(err.stack);
                         res.statusCode = 500;
-                        res.end();
+                        res.send(util.inspect(result));
                         return;
                     }
-                    console.log(result.affectedRows + ' records deleted ' + util.inspect(result));
-
                     insertUser(user, function(user) {
                         refreshUser(user, function(updatedUser) {
                             return res.send(updatedUser.accessToken);
@@ -158,17 +172,41 @@ app.get('/auth/nextcloud/callback', function(req, res) {
     });
 });
 
+Date.prototype.toUnixTime = function() {
+    return this.getTime() / 1000 | 0;
+};
 
-function getCalendar(user, cb) {
+Date.unixTime = function() {
+    return new Date().toUnixTime();
+};
+
+function processCalendar(user, cb) {
     rec = user.sign({
-        url: `https://cloud.vchrist.at/remote.php/dav/calendars/${user.data.user_id}/mllabfuhr/?export`
+        url: 'https://cloud.vchrist.at/remote.php/dav/calendars/' + user.data.user_id + '/mllabfuhr/?export' + '&expand=1' + '&start=' + Date.unixTime() + '&end=' + Date.unixTime() + 3600 * 24,
+        headers: {
+            Accept: 'application/calendar+json'
+        }
     });
 
     request.get(rec, function(error, response, body) {
-        console.log('Call Response: ' + body);
-        console.log('Call Status: ' + response.statusCode);
-        console.log('ENDE');
-        cb(body);
+        var iCalData = JSON.parse(body);
+
+        //var iCalData = ICAL.parse(body);
+        //console.log('Call Response: ' + JSON.stringify(iCalData, null, 4));
+        //console.log('Call Status: ' + response.statusCode);
+
+        var comp = new ICAL.Component(iCalData);
+        var vevent = comp.getFirstSubcomponent('vevent');
+        var event = new ICAL.Event(vevent);
+        var str = '';
+        if (event.startDate) {
+            str = 'Event Summary: ' + event.summary + '\n\tLocale Start: ' + event.startDate.toJSDate() + '\n\tLocale End: ' + event.endDate.toJSDate();
+        } else {
+            str = 'No Event';
+        }
+
+        console.log(str);
+        cb(str + '\n');
     });
 }
 
@@ -186,43 +224,28 @@ app.get('/test', function(req, res) {
             res.end();
             return;
         }
-        console.log("SELECT result: " + util.inspect(result));
 
         result.forEach(function(oc_user) {
-            var user = nextcloudAuth.createToken(oc_user.oc_accesstoken, oc_user.oc_refreshtoken, 'bearer');
-            user.data.user_id = oc_user.oc_userid;
-
-            expires = new Date(oc_user.oc_expires);
-            expires.setMinutes(expires.getMinutes() - 10);
-            user.expiresIn(expires);
-
+            var user = nextcloudAuth.createToken(oc_user.oc_accesstoken,
+                                                 oc_user.oc_refreshtoken,
+                                                 'bearer',
+                                                 {
+                                                    user_id: oc_user.oc_userid,
+                                                    expires_in: oc_user.oc_expires.toUnixTime() - Date.unixTime() - 600
+                                                 });
             if (user.expired()) {
                 refreshUser(user, function(updatedUser) {
-                    console.log('111----------------------------------------');
-                    console.log('UpdatedUser: ' + util.inspect(updatedUser));
-                    console.log('111----------------------------------------');
-
-                    getCalendar(updatedUser, function(body) {
+                    processCalendar(updatedUser, function(body) {
                         return res.send(body);
                     });
                 });
             } else {
-                console.log('222----------------------------------------');
-                console.log('User: ' + util.inspect(user));
-                console.log('222----------------------------------------');
-
-                getCalendar(user, function(body) {
-                    var iCalData = ICAL.parse(body);
-                    var comp = new ICAL.Component(iCalData);
-                    var vevent = comp.getFirstSubcomponent('vevent');
-                    var event = new ICAL.Event(vevent);
-                    console.log('Local: ' + event.startDate.toJSDate()); // Correct local time
+                processCalendar(user, function(body) {
                     return res.send(body);
                 });
             }
         });
     });
-    console.log('ende');
 });
 
 app.listen(8080, function() {
