@@ -1,3 +1,5 @@
+'use strict';
+
 var ClientOAuth2 = require('client-oauth2');
 var util = require('util');
 var mysql = require('mysql');
@@ -25,11 +27,11 @@ function handleDisconnect() {
 
     db.origQuery = db.query;
 
-    db.query = function(sql, cb) {
-        db.origQuery(sql, function(err, result) {
+    db.query = function(sql, values, cb) {
+        db.origQuery(sql, values, function(err, result) {
             if (err) {
-                console.log('Query Error: ' + err);
-            } else {}
+                // handle socket and lower level errors
+            }
             cb(err, result);
         });
     };
@@ -70,20 +72,28 @@ app.get('/auth/nextcloud', function(req, res) {
     res.redirect(uri);
 });
 
-function insertUser(user, cb) {
-    sql = `INSERT INTO wastecalendar.oc_user(
-        oc_userid,
-        oc_accesstoken,
-        oc_refreshtoken,
-        oc_expires)
-    VALUES(
-        ${db.escape(user.data.user_id)},
-        ${db.escape(user.accessToken)},
-        ${db.escape(user.refreshToken)},
-        ${db.escape(user.expires)})`;
+/*
+ *
+    var post  = {id: 1, title: 'Hello MySQL'};
+    var query = connection.query('INSERT INTO posts SET ?', post, function(err, result) {
+        // Neat!
+    });
+    console.log(query.sql); // INSERT INTO posts SET `id` = 1, `title` = 'Hello MySQL'
+ */
 
-    console.log("SQL: " + sql);
-    db.query(sql, function(err, result) {
+function insertUser(user, cb) {
+    console.log('AUTH: Create account for user ' + user.data.user_id);
+    
+    var sql = 'INSERT INTO wastecalendar.oc_user SET ?';
+    
+    var ocUser = {
+        oc_userid: user.data.user_id,
+        oc_accessToken: user.accessToken,
+        oc_refreshtoken: user.refreshToken,
+        oc_expires: user.expires
+    };
+    
+    db.query(sql, ocUser, function(err, result) {
         if (err) {
             console.error(err.stack);
             result.statusCode = 500;
@@ -97,12 +107,63 @@ function insertUser(user, cb) {
     });
 }
 
+/*
+let sql = `UPDATE todos
+           SET completed = ?
+           WHERE id = ?`;
+ 
+let data = [false, 1];
+
+// execute the UPDATE statement
+connection.query(sql, data, (error, results, fields) => {
+  if (error){
+    return console.error(error.message);
+  }
+  console.log('Rows affected:', results.affectedRows);
+});
+
+////////////////////////
+
+connection.query('UPDATE user SET ? WHERE ?', [{ Name: name }, { UserId: userId }])
+*/
+
 function refreshUser(user, cb) {
+    console.log('Refresh Token');
+    
     user.refresh().then(function(updatedUser) {
         console.log('AccessToken: ' + updatedUser.accessToken);
         console.log('RefreshToken: ' + updatedUser.refreshToken);
         console.log('Expires: ' + updatedUser.expires);
 
+        var updatedToken = [
+            // new values
+            {
+                oc_accesstoken: updatedUser.accessToken,
+                oc_refreshtoken: updatedUser.refreshToken,
+                oc_expires: updatedUser.expires
+            },
+            // condition
+            {
+                oc_userid: updatedUser.data.user_id
+            }
+        ];
+        
+        var sql_UpdateToken = 'UPDATE wastecalendar.oc_user SET ? WHERE ?';
+        
+        db.query(sql_UpdateToken, updatedToken, function(err, result) {
+            if (err) {
+                console.error(err.stack);
+                result.statusCode = 500;
+                result.end();
+                return;
+            }
+            console.log(result.affectedRows + ' record updated ' + util.inspect(result));
+
+            if (cb) {
+                cb(updatedUser);
+            }
+        });
+        /*
         var sql = `UPDATE wastecalendar.oc_user
         SET
         oc_accesstoken = ${db.escape(updatedUser.accessToken)},
@@ -123,7 +184,7 @@ function refreshUser(user, cb) {
             if (cb) {
                 cb(updatedUser);
             }
-        });
+        });*/
     });
 }
 
@@ -151,10 +212,12 @@ app.get('/auth/nextcloud/callback', function(req, res) {
                 db.query(sql, function(err, result) {
                     if (err) {
                         console.error(err.stack);
-                        res.statusCode = 500;
-                        res.send(util.inspect(result));
+                        result.statusCode = 500;
+                        result.end();
                         return;
                     }
+                    console.log(result.affectedRows + ' records updated ' + util.inspect(result));
+                    
                     insertUser(user, function(user) {
                         refreshUser(user, function(updatedUser) {
                             return res.send(updatedUser.accessToken);
@@ -181,7 +244,8 @@ Date.unixTime = function() {
 };
 
 function processCalendar(user, cb) {
-    rec = user.sign({
+    console.log('PC Calendar');
+    var rec = user.sign({
         url: 'https://cloud.vchrist.at/remote.php/dav/calendars/' + user.data.user_id + '/mllabfuhr/?export' + '&expand=1' + '&start=' + Date.unixTime() + '&end=' + Date.unixTime() + 3600 * 24,
         headers: {
             Accept: 'application/calendar+json'
@@ -200,7 +264,7 @@ function processCalendar(user, cb) {
         var event = new ICAL.Event(vevent);
         var str = '';
         if (event.startDate) {
-            str = 'Event Summary: ' + event.summary + '\n\tLocale Start: ' + event.startDate.toJSDate() + '\n\tLocale End: ' + event.endDate.toJSDate();
+            str = 'Event Summary: ' + event.summary + '\nLocale Start: ' + event.startDate.toJSDate() + '\nLocale End: ' + event.endDate.toJSDate();
         } else {
             str = 'No Event';
         }
@@ -215,8 +279,9 @@ app.get('/test', function(req, res) {
         return res.status(500).send('No Database connection!\n');
     }
 
-    sql = "SELECT * FROM wastecalendar.oc_user WHERE oc_userid = 'voc'";
+    var sql = "SELECT * FROM wastecalendar.oc_user WHERE oc_userid = 'voc'";
 
+    console.log('PC: Looking for registered user');
     db.query(sql, function(err, result) {
         if (err) {
             console.error(err.stack);
@@ -226,6 +291,8 @@ app.get('/test', function(req, res) {
         }
 
         result.forEach(function(oc_user) {
+            console.log('PC: Processing user ' + oc_user.oc_userid + ':');
+            
             var user = nextcloudAuth.createToken(oc_user.oc_accesstoken,
                                                  oc_user.oc_refreshtoken,
                                                  'bearer',
