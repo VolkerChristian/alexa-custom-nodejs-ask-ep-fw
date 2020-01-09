@@ -357,8 +357,8 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                         console.log(result.affectedRows + ' records inserted ');
 
                         cb({
-                            expires: amzUpdatedToken.amzep_expires,
-                            token: amzUpdatedToken.amzep_accesstoken
+                            expires: amzUpdatedToken[0].amzep_expires,
+                            token: amzUpdatedToken[0].amzep_accesstoken
                         });
                     });
                 });
