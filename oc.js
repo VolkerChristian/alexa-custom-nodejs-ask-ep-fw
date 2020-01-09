@@ -342,21 +342,19 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                         throw new Error(error);
                     }
                     body = JSON.parse(response.body);
-                    var expires = new Date((Date.unixTime() + body.expires_in) * 1000);
-                    
-                    console.log('AMZ: Got new access token for skill \'' + amz_skillid + '\': ' + expires + ' - ' + body.access_token);
-                    
                     var amzUpdatedToken = [
                         // new values
                         {
                             amzep_accesstoken: body.access_token,
-                            amzep_expires: expires
+                            amzep_expires: new Date((Date.unixTime() + body.expires_in) * 1000)
                         },
                         // condition
                         {
                             amzep_skillid: amz_skillid
                         }
                     ];
+                    
+                    console.log('AMZ: Got new access token for skill \'' + amz_skillid + '\': ' + amzUpdatedToken.amzep_expires + ' - ' + amzUpdatedToken.amzep_accesstoken);
 
                     var sql = 'UPDATE wastecalendar.amz_endpoint SET ? WHERE ?';
 
@@ -366,7 +364,7 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                         }
                         console.log(result.affectedRows + ' records inserted ');
 
-                        cb({expires: expires, token: body.access_token});
+                        cb({expires: amzUpdatedToken.amzep_expires, token: amzUpdatedToken.amzep_accesstoken});
                     });
                 });
             } else {
