@@ -283,7 +283,7 @@ function refreshAmzProactiveEndpointToken(cb) {
         }
     };
 
-    request.post(options, function(error, response, body) {
+    request(options, function(error, response, body) {
         cb(error, response, body);
     });
 }
