@@ -73,15 +73,6 @@ app.get('/auth/nextcloud', function(req, res) {
     res.redirect(uri);
 });
 
-/*
- *
-    var post  = {id: 1, title: 'Hello MySQL'};
-    var query = connection.query('INSERT INTO posts SET ?', post, function(err, result) {
-        // Neat!
-    });
-    console.log(query.sql); // INSERT INTO posts SET `id` = 1, `title` = 'Hello MySQL'
- */
-
 function insertUser(user, cb) {
     console.log('AUTH: Create account for user ' + user.data.user_id);
 
@@ -279,16 +270,16 @@ app.get('/test', function(req, res) {
 
 function refreshAmzProactiveEndpointToken(cb) {
     var options = {
-        'method': 'POST',
-        'url': 'https://api.amazon.com/auth/o2/token',
-        'headers': {
+        method: 'POST',
+        url: 'https://api.amazon.com/auth/o2/token',
+        headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         form: {
-            'grant_type': 'client_credentials',
-            'client_id': 'amzn1.application-oa2-client.c1494a447d77405883037efdc06baad6',
-            'client_secret': '07c7affba53c9d2632186cff30c678d5ed243efc6140436c533f2eac32e8dd11',
-            'scope': 'alexa::proactive_events'
+            grant_type: 'client_credentials',
+            client_id: 'amzn1.application-oa2-client.c1494a447d77405883037efdc06baad6',
+            client_secret: '07c7affba53c9d2632186cff30c678d5ed243efc6140436c533f2eac32e8dd11',
+            scope: 'alexa::proactive_events'
         }
     };
 
@@ -296,8 +287,6 @@ function refreshAmzProactiveEndpointToken(cb) {
         cb(error, response, body);
     });
 }
-
-const skillid = 'amzn1.ask.skill.5119403b-f6c6-45f8-bd7e-87787e6f5da2';
 
 function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
     var sql = 'SELECT * FROM wastecalendar.amz_endpoint WHERE amzep_skillid = ' + db.escape(amz_skillid);
@@ -321,14 +310,17 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                 };
 
                 var sql = 'INSERT INTO wastecalendar.amz_endpoint SET ?';
-                
+
                 db.query(sql, amzEndpointToken, function(err, result) {
                     if (err) {
                         throw new Error(err);
                     }
                     console.log(result.affectedRows + ' records inserted ');
 
-                    cb({expires: body.expires_in, token: body.access_token});
+                    cb({
+                        expires: body.expires_in,
+                        token: body.access_token
+                    });
                 });
             });
         } else {
@@ -353,8 +345,8 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                             amzep_skillid: amz_skillid
                         }
                     ];
-                    
-                    console.log('AMZ: Got new access token for skill \'' + amz_skillid + '\': ' + amzUpdatedToken.amzep_expires + ' - ' + amzUpdatedToken.amzep_accesstoken);
+
+                    console.log('AMZ: Got updated access token for skill \'' + amz_skillid + '\': ' + amzUpdatedToken[0].amzep_expires + ' - ' + amzUpdatedToken[0].amzep_accesstoken);
 
                     var sql = 'UPDATE wastecalendar.amz_endpoint SET ? WHERE ?';
 
@@ -364,21 +356,29 @@ function getAmzProactiveEndpointAccessToken(amz_skillid, cb) {
                         }
                         console.log(result.affectedRows + ' records inserted ');
 
-                        cb({expires: amzUpdatedToken.amzep_expires, token: amzUpdatedToken.amzep_accesstoken});
+                        cb({
+                            expires: amzUpdatedToken.amzep_expires,
+                            token: amzUpdatedToken.amzep_accesstoken
+                        });
                     });
                 });
             } else {
                 console.log('AMZ: Token valid');
                 // Token not expired
-                cb({expires: result[0].amzep_expires, token: result[0].amzep_accesstoken});
+                cb({
+                    expires: result[0].amzep_expires,
+                    token: result[0].amzep_accesstoken
+                });
             }
         }
     });
 }
 
 app.get('/amz', function(req, res) {
+    const skillid = 'amzn1.ask.skill.5119403b-f6c6-45f8-bd7e-87787e6f5da2';
+
     getAmzProactiveEndpointAccessToken(skillid, function(accessToken) {
-       return res.send('SkillId: ' + skillid + ': ' + '\n\tToken: ' + accessToken.token + '\n\tExpires: ' + accessToken.expires + '\n');
+        return res.send('SkillId: ' + skillid + ': ' + '\n\tToken: ' + accessToken.token + '\n\tExpires: ' + accessToken.expires + '\n');
     });
 });
 
