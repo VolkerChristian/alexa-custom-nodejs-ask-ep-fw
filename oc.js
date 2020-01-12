@@ -32,9 +32,13 @@ function handleDisconnect() {
     db.origQuery = db.query;
 
     db.query = function (sql, values, cb) {
-        console.log('Start Query ' + sql);
+        console.log('Query start' + sql);
+        if (!cb) {
+            cb = values;
+            values = null;
+        }
         db.origQuery(sql, values, function (err, result) {
-            console.log('Just debugging info');
+            console.log('Query end');
             if (err) {
                 console.error(err.stack);
                 setTimeout(handleDisconnect, 1000);
