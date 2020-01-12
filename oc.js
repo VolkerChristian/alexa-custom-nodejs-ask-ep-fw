@@ -32,7 +32,9 @@ function handleDisconnect() {
     db.origQuery = db.query;
 
     db.query = function (sql, values, cb) {
+        console.log('Start Query ' + sql);
         db.origQuery(sql, values, function (err, result) {
+            console.log('Just debugging info');
             if (err) {
                 console.error(err.stack);
                 setTimeout(handleDisconnect, 1000);
@@ -275,7 +277,8 @@ function sendProactiveEvent(apiEndpoint, apiAccessToken, amzUserId) {
                                 providerName: 'Alexa Event Beispiel',
                                 contentName: 'Das ist ein Event'
                             }
-                        ],*/
+                        ],
+            */
             relevantAudience: {
                 type: 'Unicast',
                 payload: {
