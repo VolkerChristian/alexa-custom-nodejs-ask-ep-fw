@@ -56,7 +56,7 @@ function handleDisconnect() {
 
         console.log('> Re-connecting lost MySQL connection: ' + error.stack);
 
-        setTimeout(handleDisconnect(), 1000);
+        setTimeout(handleDisconnect, 1000);
     });
 }
 
