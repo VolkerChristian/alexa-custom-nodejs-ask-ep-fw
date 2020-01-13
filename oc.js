@@ -34,7 +34,7 @@ function handleDisconnect() {
     db.origQuery = db.query;
 
     db.query = function (sql, values, cb) {
-        console.log('Query start' + sql);
+        console.log('Query start: ' + sql);
         if (!cb) {
             cb = values;
             values = null;
