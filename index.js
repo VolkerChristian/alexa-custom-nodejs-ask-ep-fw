@@ -23,14 +23,20 @@ skillDirs('.').forEach(function(skilldir) {
 
     console.log('Registering Skillendpoint /' + skillEndpointName);
 
-    skillEndpoints[skillEndpointName] = require('./' + skilldir + '/skill').handler;
+    lambda[skillEndpointName] = require('./' + skilldir + '/skill').handler;
 
     app.post('/' + skillEndpointName, function(req, res) {
         skillEndpointName = req.url.replace(/\//g, '');
 
-//        console.log('REQUEST++++ ' + JSON.stringify(skillEndpointName, null, '    '));
-//        console.log('BODY: ' + JSON.stringify(req.body, null, '    '));
-
+        lambda[skillEndpointName](req.body, null, function (err, response) {
+            if (err) {
+                console.log(err);
+                res.status(500).send('Error during the request');
+            } else {
+                res.json(response);
+            }
+        });
+/*
         skillEndpoints[skillEndpointName].invoke(req.body)
             .then(function(responseBody) {
                 res.json(responseBody);
@@ -39,6 +45,7 @@ skillDirs('.').forEach(function(skilldir) {
                 console.log(error);
                 res.status(500).send('Error during the request');
             });
+*/
     });
 });
 
