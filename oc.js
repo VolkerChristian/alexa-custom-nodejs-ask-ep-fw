@@ -1,7 +1,6 @@
 #!/usr/bin/node
 
 /*jshint esversion: 6 */
-/*jshint strict:false */
 /*jslint node: true */
 
 'use strict';
