@@ -145,7 +145,6 @@ var nextcloudAuth = new ClientOAuth2({
     scopes: []
 });
 
-var express = require('express');
 var manager = express();
 
 manager.get('/auth/nextcloud', function (req, res) {
