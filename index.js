@@ -1,8 +1,19 @@
 /*jshint esversion: 6 */
+/*jslint node: true */
+
+'use strict';
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+
+const app = express();
+
+app.use(bodyParser.json());
+
+app.get('/', function(req, res) {
+    res.send('Alexa Custom Skill Endpoint Framework\n');
+});
 
 const skillDirs = source => fs.readdirSync(source, {
     withFileTypes: true
@@ -13,42 +24,54 @@ const skillDirs = source => fs.readdirSync(source, {
     return a;
 }, []);
 
-const skillEndpoints = {};
+skillDirs(__dirname).forEach(function (skilldir) {
+    var skillName = skilldir.replace('.skill', '');
 
-const app = express();
-app.use(bodyParser.json());
+    var skill = express();
 
-skillDirs('.').forEach(function(skilldir) {
-    skillEndpointName = skilldir.replace('.skill', '');
+    skill.locals = require(__dirname + '/' + skilldir + '/skill');
 
-    console.log('Registering Skillendpoint /' + skillEndpointName);
+    var skillEndpointPath = '/' + skillName;
+    if (skill.locals.endpointPath) {
+        skillEndpointPath = skill.locals.endpointPath;
+    }
 
-    lambda[skillEndpointName] = require('./' + skilldir + '/skill').handler;
+    console.log('Registering skill \'' + skillName + '\'');
 
-    app.post('/' + skillEndpointName, function(req, res) {
-        skillEndpointName = req.url.replace(/\//g, '');
-
-        lambda[skillEndpointName](req.body, null, function (err, response) {
+    skill.post(skillEndpointPath, function (req, res) {
+        skill.locals.handler(req.body, null, function (err, response) {
             if (err) {
-                console.log(err);
-                res.status(500).send('Error during the request');
+                console.error(err);
+                res.status(500).json(seriousErrorSpeech);
             } else {
                 res.json(response);
             }
         });
-/*
-        skillEndpoints[skillEndpointName].invoke(req.body)
-            .then(function(responseBody) {
-                res.json(responseBody);
-            })
-            .catch (function(error) {
-                console.log(error);
-                res.status(500).send('Error during the request');
-            });
-*/
     });
+
+    app.use('/', skill);
+    
+    console.log('Successful registered skill \'' + skillName + '\' on path ' + skill.path());// + skillEndpointPath);
 });
 
-app.listen(8080, function() {
+app.listen(8080, function () {
     console.log('Development endpoint listening on port 8080!');
 });
+
+var seriousErrorSpeech = {
+    "version": "1.0",
+    "response": {
+        "outputSpeech": {
+            "type": "SSML",
+            "ssml": "<speak>Sorry, I had a serious trouble processing your request. Please try again. < /speak>"
+        },
+        "reprompt": {
+            "outputSpeech": {
+                "type": "SSML",
+                "ssml": "<speak>Sorry, I had a serious error processing your request. Please try again. < /speak>"
+            }
+        },
+        "shouldEndSession": false
+    },
+    "userAgent": "ask-node/2.7.0 Node/v10.17.0"
+};
