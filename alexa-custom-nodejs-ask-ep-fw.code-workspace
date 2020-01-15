@@ -2,12 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"path": "/home/voc/usr/git/node-aircontrol"
-		},
-		{
-			"path": "/home/voc/usr/git/amazon-alexa-smarthome-skill-php-sdk/werama-jalousien"
 		}
 	],
 	"settings": {}
