@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "/home/voc/usr/git/alexa-wastecalendar.skill"
 		}
 	],
 	"settings": {}
