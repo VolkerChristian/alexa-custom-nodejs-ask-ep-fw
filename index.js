@@ -49,7 +49,12 @@ var skillEndpointListener = skillEndpoint.listen(8080, function () {
 
             skillEndpoint.use(skillEndpointPath, skillApp);
 
-            skillApp.post('/handler', function (req, res) {
+            var handlerPath = '/handler';
+            if (skill.handlerPath) {
+                handlerPath = skill.handlerPath;
+            }
+
+            skillApp.post(handlerPath, function (req, res) {
                 skillApp.locals.handler(req.body, null, function (err, response) {
                     if (err) {
                         console.error(err);
@@ -83,14 +88,6 @@ var skillEndpointListener = skillEndpoint.listen(8080, function () {
         }
     });
 });
-
-/*
-skillEndpoint._router.stack.forEach(function (r) {
-    if (r.route && r.route.path) {
-        console.log(r.route.path)
-    }
-});
-*/
 
 var seriousErrorSpeech = {
     "version": "1.0",
