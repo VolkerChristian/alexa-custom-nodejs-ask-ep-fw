@@ -34,14 +34,13 @@ var skillEndpointListener = skillEndpoint.listen(8080, function () {
 
         if (fs.existsSync(__dirname + '/' + skillDir + '/skill.js')) {
             var skill = require(__dirname + '/' + skillDir + '/skill');
+            
             var logLine = 'Skill \'' + skill.name + '\' from ' + skillDir;
             console.log(logLine);
             console.log("=".repeat(logLine.length));
-            var skillApp = express();
 
+            var skillApp = express();
             skillApp.locals.handler = skill.handler;
-            console.log('Handler: ' + skill.handler);
-            console.log('Handler: ' + skillApp.locals.handler);
 
             var skillEndpointPath = '/' + skillName;
             if (skill.endpointPath) {
