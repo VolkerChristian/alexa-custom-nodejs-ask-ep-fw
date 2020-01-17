@@ -40,6 +40,8 @@ var skillEndpointListener = skillEndpoint.listen(8080, function () {
             var skillApp = express();
 
             skillApp.locals.handler = skill.handler;
+            console.log('Handler: ' + skill.handler);
+            console.log('Handler: ' + skillApp.locals.handler);
 
             var skillEndpointPath = '/' + skillName;
             if (skill.endpointPath) {
