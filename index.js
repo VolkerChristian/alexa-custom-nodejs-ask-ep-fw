@@ -1,6 +1,6 @@
 #!/usr/bin/node
 
-/*jshint esversion: 6 */
+/*jshint esversion: 8 */
 /*jslint node: true */
 
 'use strict';
@@ -8,9 +8,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-
 const util = require('util');
-
 const skillEndpoint = express();
 
 skillEndpoint.use(bodyParser.json());
@@ -28,65 +26,68 @@ const skillDirs = source => fs.readdirSync(source, {
     return a;
 }, []);
 
-var skillEndpointListener = skillEndpoint.listen(8080, function () {
-    skillDirs(__dirname).forEach(function (skillDir) {
-        var skillName = skillDir.replace('.skill', '');
 
-        if (fs.existsSync(__dirname + '/' + skillDir + '/skill.js')) {
-            var skill = require(__dirname + '/' + skillDir + '/skill');
+function loadSkill(skillDir) {
+    var skillName = skillDir.replace('.skill', '');
 
-            var logLine = 'Skill \'' + skill.name + '\' from ' + skillDir;
-            console.log(logLine);
-            console.log("=".repeat(logLine.length));
+    if (fs.existsSync(__dirname + '/' + skillDir + '/skill.js')) {
+        var skill = require(__dirname + '/' + skillDir + '/skill');
 
-            var skillApp = express();
-            skillApp.locals.handler = skill.handler;
+        var logLine = 'Skill \'' + skill.name + '\' from ' + skillDir;
+        console.log(logLine);
+        console.log("=".repeat(logLine.length));
 
-            var skillEndpointPath = '/' + skillName;
-            if (skill.endpointPath) {
-                skillEndpointPath = skill.endpointPath;
-            }
+        var skillApp = express();
+        skillApp.locals.handler = skill.handler;
 
-            skillEndpoint.use(skillEndpointPath, skillApp);
+        var skillEndpointPath = '/' + skillName;
+        if (skill.endpointPath) {
+            skillEndpointPath = skill.endpointPath;
+        }
 
-            var handlerPath = '/handler';
-            if (skill.handlerPath) {
-                handlerPath = skill.handlerPath;
-            }
+        skillEndpoint.use(skillEndpointPath, skillApp);
 
-            skillApp.post(handlerPath, function (req, res) {
-                skillApp.locals.handler(req.body, null, function (err, response) {
-                    if (err) {
-                        console.error(err);
-                        res.status(500).json(seriousErrorSpeech);
-                    } else {
-                        res.json(response);
-                    }
-                });
+        var handlerPath = '/handler';
+        if (skill.handlerPath) {
+            handlerPath = skill.handlerPath;
+        }
+
+        skillApp.post(handlerPath, function (req, res) {
+            skillApp.locals.handler(req.body, null, function (err, response) {
+                if (err) {
+                    console.error(err);
+                    res.status(500).json(seriousErrorSpeech);
+                } else {
+                    res.json(response);
+                }
             });
+        });
 
-            skillApp._router.stack.forEach(function (r) {
+        skillApp._router.stack.forEach(function (r) {
+            if (r.route && r.route.path) {
+                console.log('[' + skillEndpointListener.address().address + ']:' + skillEndpointListener.address().port + skillEndpointPath + r.route.path);
+            }
+        });
+
+        if (typeof skill.router === 'function') {
+            skillApp.use('/', skill.router);
+            skill.router.stack.forEach(function (r) {
                 if (r.route && r.route.path) {
                     console.log('[' + skillEndpointListener.address().address + ']:' + skillEndpointListener.address().port + skillEndpointPath + r.route.path);
                 }
             });
-
-            if (typeof skill.router === 'function') {
-                skillApp.use('/', skill.router);
-                skill.router.stack.forEach(function (r) {
-                    if (r.route && r.route.path) {
-                        console.log('[' + skillEndpointListener.address().address + ']:' + skillEndpointListener.address().port + skillEndpointPath + r.route.path);
-                    }
-                });
-            }
-
-            if (typeof skill.init === 'function') {
-                skill.init(skillApp);
-            }
-        } else {
-            console.error('No /' + skillDir + '/skill.js found.');
         }
-    });
+
+        if (typeof skill.init === 'function') {
+            skill.init(skillApp);
+        }
+    } else {
+        console.error('No /' + skillDir + '/skill.js found.');
+    }
+}
+
+var skillEndpointListener = skillEndpoint.listen(8080, function () {
+    skillDirs(__dirname).forEach(loadSkill);
 });
 
 var seriousErrorSpeech = {
