@@ -8,7 +8,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const util = require('util');
 const skillEndpoint = express();
 
 skillEndpoint.use(bodyParser.json());
