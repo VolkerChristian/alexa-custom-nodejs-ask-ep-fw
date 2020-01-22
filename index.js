@@ -6,9 +6,6 @@
 'use strict';
 
 const express = require('express');
-const {
-    ExpressAdapter
-} = require('ask-sdk-express-adapter');
 // const bodyParser = require('body-parser');
 const fs = require('fs');
 const skillEndpoint = express();
@@ -46,29 +43,13 @@ function loadSkill(skillDir) {
         if (skill.endpointPath) {
             skillEndpointPath = skill.endpointPath;
         }
-
         skillEndpoint.use(skillEndpointPath, skillApp);
 
-        var skillPath = '/handler';
+        var skillHandlerPath = '/handler';
         if (skill.handlerPath) {
-            skillPath = skill.skillPath;
+            skillHandlerPath = skill.skillPath;
         }
-        /*
-        skillApp.post(handlerPath, function (req, res) {
-            skillApp.locals.handler(req.body, null, function (err, response) {
-                if (err) {
-                    console.error(err);
-                    res.status(500).json(seriousErrorSpeech);
-                } else {
-                    res.json(response);
-                }
-            });
-        });
-        */
-        const adapter = new ExpressAdapter(skill.skill, true, true);
-        
-        skillApp.post(skillPath, adapter.getRequestHandlers());
-
+        skillApp.post(skillHandlerPath, skill.handlers);
         skillApp._router.stack.forEach(function (r) {
             if (r.route && r.route.path) {
                 console.log('[' + skillEndpointListener.address().address + ']:' + skillEndpointListener.address().port + skillEndpointPath + r.route.path);
@@ -94,10 +75,9 @@ function loadSkill(skillDir) {
 
 var skillEndpointListener = skillEndpoint.listen(8080, function (err) {
     if (err) {
-        console.error('Can not create server on port ' + skillEndpointListener.address().port)
+        console.error('Can not create server on port ' + skillEndpointListener.address().port);
     } else {
         console.log('Server listening on port ' + skillEndpointListener.address().port);
-        loadSkill('.');
         skillDirs(__dirname).forEach(loadSkill);
     }
 });
