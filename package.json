@@ -17,6 +17,9 @@
   },
   "homepage": "https://github.com/VolkerChristian/alexa-custom-nodejs-ask-ep-fw#readme",
   "dependencies": {
+    "ask-sdk-core": "^2.7.0",
+    "ask-sdk-express-adapter": "^2.0.0",
+    "ask-sdk-model": "^1.25.1",
     "express": "^4.17.1"
   }
 }
