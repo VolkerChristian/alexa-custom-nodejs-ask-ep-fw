@@ -6,11 +6,14 @@
 'use strict';
 
 const express = require('express');
-const bodyParser = require('body-parser');
+const {
+    ExpressAdapter
+} = require('ask-sdk-express-adapter');
+// const bodyParser = require('body-parser');
 const fs = require('fs');
 const skillEndpoint = express();
 
-skillEndpoint.use(bodyParser.json());
+// skillEndpoint.use(bodyParser.json());
 
 skillEndpoint.get('/', function (req, res) {
     res.send('Alexa Custom Skill Endpoint Framework\n');
@@ -46,11 +49,11 @@ function loadSkill(skillDir) {
 
         skillEndpoint.use(skillEndpointPath, skillApp);
 
-        var handlerPath = '/handler';
+        var skillPath = '/handler';
         if (skill.handlerPath) {
-            handlerPath = skill.handlerPath;
+            skillPath = skill.skillPath;
         }
-
+        /*
         skillApp.post(handlerPath, function (req, res) {
             skillApp.locals.handler(req.body, null, function (err, response) {
                 if (err) {
@@ -61,6 +64,10 @@ function loadSkill(skillDir) {
                 }
             });
         });
+        */
+        const adapter = new ExpressAdapter(skill.skill, true, true);
+        
+        skillApp.post(skillPath, adapter.getRequestHandlers());
 
         skillApp._router.stack.forEach(function (r) {
             if (r.route && r.route.path) {
