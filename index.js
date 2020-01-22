@@ -81,12 +81,18 @@ function loadSkill(skillDir) {
             skill.init(skillApp);
         }
     } else {
-        console.error('No /' + skillDir + '/skill.js found.');
+        console.log('No /' + skillDir + '/skill.js found.');
     }
 }
 
-var skillEndpointListener = skillEndpoint.listen(8080, function () {
-    skillDirs(__dirname).forEach(loadSkill);
+var skillEndpointListener = skillEndpoint.listen(8080, function (err) {
+    if (err) {
+        console.error('Can not create server on port ' + skillEndpointListener.address().port)
+    } else {
+        console.log('Server listening on port ' + skillEndpointListener.address().port);
+        loadSkill('.');
+        skillDirs(__dirname).forEach(loadSkill);
+    }
 });
 
 var seriousErrorSpeech = {
