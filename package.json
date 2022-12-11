@@ -17,6 +17,6 @@
   },
   "homepage": "https://github.com/VolkerChristian/alexa-custom-nodejs-ask-ep-fw#readme",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.3"
   }
 }
